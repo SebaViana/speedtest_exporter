@@ -8,13 +8,20 @@ download_speed_metric = Gauge('download_speed_mbps', 'Download speed in Mbps')
 upload_speed_metric = Gauge('upload_speed_mbps', 'Upload speed in Mbps')
 
 def get_speed():
-    st = speedtest.Speedtest(secure=True)
-    st.get_best_server()
-    
-    download_speed = st.download() / 1_000_000  
-    upload_speed = st.upload() / 1_000_000  
-    
-    return download_speed, upload_speed
+    try:
+        st = speedtest.Speedtest(secure=True)
+        st.get_best_server()
+
+        download_speed = st.download() / 1_000_000  
+        upload_speed = st.upload() / 1_000_000  
+
+        return download_speed, upload_speed
+    except speedtest.SpeedtestBestServerFailure as e:
+        print(f"Error getting server: {e}")
+        return None, None
+    except Exception as e:
+        print(f"Error during speed test: {e}")
+        return None, None
 
 def read_config(config_file):
     try:
@@ -46,11 +53,11 @@ def main():
     while True:
         download_speed, upload_speed = get_speed()
         
-        download_speed_metric.set(download_speed)
-        upload_speed_metric.set(upload_speed)
-       
-        time.sleep(speedtest_interval)
+        if download_speed is not None and upload_speed is not None:
+            download_speed_metric.set(download_speed)
+            upload_speed_metric.set(upload_speed)
 
+        time.sleep(speedtest_interval)
 
 if __name__ == "__main__":
     main()
